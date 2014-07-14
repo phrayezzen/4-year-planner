@@ -1,27 +1,27 @@
 var data = [{
-    'name': 'ELEC 220', 
+    'name': 'COMP140', 
     'prerequisites': '', 
 }, {
-    'name': 'COMP 140', 
+    'name': 'ELEC220', 
     'prerequisites': '', 
 }, {
-    'name': 'COMP 182', 
-    'prerequisites': 'COMP 140', 
+    'name': 'COMP182', 
+    'prerequisites': 'COMP140', 
 }, {
-    'name': 'COMP 215', 
-    'prerequisites': 'COMP 182', 
+    'name': 'COMP215', 
+    'prerequisites': 'COMP182', 
 }, {
-    'name': 'COMP 221', 
-    'prerequisites': 'ELEC 220 AND COMP 215', 
+    'name': 'COMP221', 
+    'prerequisites': 'ELEC220 AND COMP215', 
 }, {
-    'name': 'COMP 310', 
-    'prerequisites': 'COMP 215', 
+    'name': 'COMP310', 
+    'prerequisites': 'COMP215', 
 }, {
-    'name': 'COMP 322', 
-    'prerequisites': 'COMP 215', 
+    'name': 'COMP322', 
+    'prerequisites': 'COMP215', 
 }, {
-    'name': 'COMP 421', 
-    'prerequisites': 'COMP 221', 
+    'name': 'COMP421', 
+    'prerequisites': 'COMP221', 
 }];
 
 function main() {
@@ -29,7 +29,7 @@ function main() {
     var w = 1000;
     var h = 1000;
     var r = 40;
-    var svg = d3.select("body")
+    this.svg = d3.select("body")
                 .append("svg")
                 .attr("width", w)
                 .attr("height", h); 
@@ -47,7 +47,7 @@ function main() {
         this.visualize();
     };
 
-    this.shave = function(lines) {
+    this.shaveLines = function(lines) {
         for (var i = 0; i < lines.length; i++) {
             var l = lines[i];
             var theta = Math.atan(l.m);
@@ -66,6 +66,15 @@ function main() {
             return [];
         return prereqs.split(/ AND | OR /);
     };
+
+    this.getAllPrereqs = function(course) {
+        var prereqs = this.splitPrereqs(course.prerequisites);
+        var l = prereqs.length;
+        for (var i = 0; i < l; i++) {
+            prereqs = prereqs.concat(this.getAllPrereqs(m.courseDict[prereqs[i]]));
+        };
+        return prereqs;
+    }
 
     this.getLevel = function(course) {
         // prelim check for course level
@@ -117,7 +126,7 @@ function main() {
     };
 
     this.addCourse = function(course) {
-        // fill out how many courses per vertical level 
+        // fill out course definites
         course.lines = [];
         course.level = this.getLevel(course);
         if (!(course.level in this.levels)) 
@@ -168,7 +177,7 @@ function main() {
         } while (badPos);
         
         // add course information to globals
-        this.shave(course.lines);
+        this.shaveLines(course.lines);
         this.courses.push(course);
         this.courseDict[course.name] = course;
         this.levels[course.level].push(course.pos);
@@ -176,26 +185,29 @@ function main() {
     };
 
     this.visualize = function() {
-        svg.selectAll("circle")
+        this.svg.selectAll("circle")
             .data(this.courses)
             .enter()
             .append("circle")
             .attr("r", r)
             .attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; })
-            .attr("fill", function(d) { return "rgb(" + (d.level * 50) + ", 0, 0)"; })
-            .attr("name", function(d) { return d.name; });
+            .attr("fill", 'red')//function(d) { return "rgb(" + (d.level * 50) + ", 0, 0)"; })
+            .attr("stroke", "orange")
+            .attr("stroke-width", 5)
+            .attr("id", function(d) { return d.name; });
 
-        svg.selectAll("line")
+        this.svg.selectAll("line")
             .data(this.lines)
             .enter()
             .append("line")
             .attr("x1", function(d) { return d.x1; })
             .attr("y1", function(d) { return d.y1; })
             .attr("x2", function(d) { return d.x2; })
-            .attr("y2", function(d) { return d.y2; });
+            .attr("y2", function(d) { return d.y2; })
+            .attr("stroke-width", 2);
 
-        svg.selectAll("text")
+        this.svg.selectAll("text")
             .data(this.courses)
             .enter()
             .append("text")
@@ -209,5 +221,5 @@ function main() {
     };
 };
 
-var m = new main();
+m = new main();
 m.init();
