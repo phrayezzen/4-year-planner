@@ -2,18 +2,25 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>D3 Test</title>
-        <script type="text/javascript" src="lib/d3.v3.js"></script>
+        <title>Four Year Planner</title>
+        <script type="text/javascript" src="./lib/d3.v3.min.js"></script>
         <style>
         line {
             stroke: rgb(0, 0, 0);
             stroke-width: 2px;
         }
+        #err {
+            color: red;
+        }
         </style>
-        <script type="text/javascript" src="lib/jquery.min.js"></script>
+        <script type="text/javascript" src="./lib/jquery.min.js"></script>
     </head>
     <body>
-        <script type="text/javascript" src="js/main.js"></script>
-        <script type="text/javascript" src="js/jq.js"></script>
+        <label for="addCourse">Course Number: </label>
+        <input type="text" id="addCourse" maxlength="7">
+        <br>
+        <button onclick="m.getCourse()">Submit</button><span id="err"></span>
+        <script type="text/javascript" src="./js/main.js"></script>
+        <script type="text/javascript" src="./js/jq.js"></script>
     </body>
 </html>   

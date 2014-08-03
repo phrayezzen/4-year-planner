@@ -1,0 +1,12 @@
+TODO.txt
+
+connect to database
+-fill database by using school API
+-expand information about each course
+add user interaction 
+-add/remove circles (on click/text field)
+-select groups of classes based on scheduleplanner selections
+-filter out by color or something
+connect to CAS to save state
+
+add a planner at some point...

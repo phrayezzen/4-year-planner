@@ -1,28 +1,29 @@
-var data = [{
-    'name': 'COMP140', 
-    'prerequisites': '', 
-}, {
-    'name': 'ELEC220', 
-    'prerequisites': '', 
-}, {
-    'name': 'COMP182', 
-    'prerequisites': 'COMP140', 
-}, {
-    'name': 'COMP215', 
-    'prerequisites': 'COMP182', 
-}, {
-    'name': 'COMP221', 
-    'prerequisites': 'ELEC220 AND COMP215', 
-}, {
-    'name': 'COMP310', 
-    'prerequisites': 'COMP215', 
-}, {
-    'name': 'COMP322', 
-    'prerequisites': 'COMP215', 
-}, {
-    'name': 'COMP421', 
-    'prerequisites': 'COMP221', 
-}];
+
+// var data = [{
+//     'name': 'COMP140', 
+//     'prerequisites': '', 
+// }, {
+//     'name': 'ELEC220', 
+//     'prerequisites': '', 
+// }, {
+//     'name': 'COMP182', 
+//     'prerequisites': 'COMP140', 
+// }, {
+//     'name': 'COMP215', 
+//     'prerequisites': 'COMP182', 
+// }, {
+//     'name': 'COMP221', 
+//     'prerequisites': 'ELEC220 AND COMP215', 
+// }, {
+//     'name': 'COMP310', 
+//     'prerequisites': 'COMP215', 
+// }, {
+//     'name': 'COMP322', 
+//     'prerequisites': 'COMP215', 
+// }, {
+//     'name': 'COMP421', 
+//     'prerequisites': 'COMP221', 
+// }];
 
 function main() {
     var that = this;
@@ -35,21 +36,20 @@ function main() {
                 .attr("height", h); 
 
     this.levels = {};
-    this.lines = [];
-    this.courses = [];
     this.courseDict = {};
 
-    // populate courses from database
-    this.init = function() {
-        for (var i = 0; i < data.length; i++)
-            if (!(data[i] in this.courseDict))
-                this.addCourse(data[i]);
-        this.visualize();
-    };
+    this.apiRequest = function(course) {
+        course = course ? "/" + course : "";
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.open("GET", 'http://localhost:2205/courses' + course, false);
+        xmlHttp.send(null);
+        return JSON.parse(xmlHttp.responseText);
+    }
 
     this.shaveLines = function(lines) {
-        for (var i = 0; i < lines.length; i++) {
-            var l = lines[i];
+        var to = Object.keys(lines);
+        for (var i = 0; i < to.length; i++) {
+            var l = lines[to];
             var theta = Math.atan(l.m);
             var mult = l.x1 > l.x2 ? -1 : 1
             l.x1 += r * Math.cos(theta) * mult;
@@ -68,10 +68,11 @@ function main() {
     };
 
     this.getAllPrereqs = function(course) {
+        course = this.courseDict[course];
         var prereqs = this.splitPrereqs(course.prerequisites);
         var l = prereqs.length;
         for (var i = 0; i < l; i++) {
-            prereqs = prereqs.concat(this.getAllPrereqs(m.courseDict[prereqs[i]]));
+            prereqs = prereqs.concat(this.getAllPrereqs(prereqs[i]));
         };
         return prereqs;
     }
@@ -96,6 +97,14 @@ function main() {
         return max;
     };
 
+    this.getCourse = function(course) {
+        if (course === undefined) {
+            course = $("#addCourse").val();
+        }
+        this.addCourse(course);
+        this.visualize();
+    };
+
     this.checkLineCollision = function(line) {
         // TODO: return all collided objects, not just true
         // var collisions = {
@@ -104,21 +113,23 @@ function main() {
         // };
 
         // first checks if line goes through any circle center
-        for (var i = 0; i < this.courses.length; i++) {
-            var c = this.courses[i];
+        for (var i = 0; i < data.length; i++) {
+            var c = data[i];
             if (line.m * c.x + line.b === c.y && c.y > line.y1 && c.y < line.y2 &&
                 ((c.x > line.x1 && c.x < line.x2) || (c.x < line.x1 && c.x > line.x2)))
                 return true;
                 // collisions.courses.push(c);
-        };
-
-        // then checks if any two lines overlap
-        for (var j = 0; j < this.lines.length; j++) {
-            var l = this.lines[j];
-            if (line.m === l.m && line.b === l.b &&
-                ((l.y1 > line.y1 && l.y1 < line.y2) || (l.y2 > line.y1 && l.y2 < line.y2)))
-                return true;
-                // collsions.lines.push(l);
+            // then checks if any two lines overlap
+            var to = Object.keys(c.lines)
+            for (var j = 0; j < to.length; j++) {
+                var l = c.lines[to[j]];
+                if (line === l)
+                    continue
+                if (line.m === l.m && line.b === l.b &&
+                    ((l.y1 > line.y1 && l.y1 < line.y2) || (l.y2 > line.y1 && l.y2 < line.y2)))
+                    return true;
+                    // collsions.lines.push(l);
+            };
         };
 
         return false;
@@ -126,8 +137,22 @@ function main() {
     };
 
     this.addCourse = function(course) {
+        console.log(course);
+        if (course in this.courseDict) {
+            error("Course already added!");
+            return;
+        }
+        if (course === '') {
+            error("Please enter a course!");
+            return;
+        }
+        course = this.apiRequest(course)[0];
+        if (course === undefined) {
+            error("Course not found!");
+            return;
+        }
         // fill out course definites
-        course.lines = [];
+        course.lines = {};
         course.level = this.getLevel(course);
         if (!(course.level in this.levels)) 
             this.levels[course.level] = [];
@@ -137,7 +162,7 @@ function main() {
         if (course.prerequisites === '') {
             course.pos = this.levels[0].length;
             course.x = 2.5 * course.pos * r + 50;
-            this.courses.push(course);
+            data.push(course);
             this.courseDict[course.name] = course;
             this.levels[0].push(course.pos);
             return;
@@ -150,21 +175,22 @@ function main() {
             var line = {
                 'x1': this.courseDict[prereq].x, 
                 'y1': this.courseDict[prereq].y, 
-                'y2': course.y, 
-                'from': this.courseDict[prereq], 
-                'to': course
+                'y2': course.y,
+                'from': prereq,
+                'to': course.name
             };
-            course.lines.push(line);
+            this.courseDict[prereq].lines[course.name] = line;
         };
 
         // increment x position until overlap is gone
         course.pos = -1;
         do {
+            console.log(course.name, course.pos);
             var badPos = false;
             course.pos++;
             course.x = 2.5 * course.pos * r + 50;
-            for (var i = 0; i < course.lines.length; i++) {
-                var line = course.lines[i];
+            for (var i = 0; i < coursePrereqs.length; i++) {
+                var line = this.courseDict[coursePrereqs[i]].lines[course.name];
                 line.x2 = course.x;
                 line.m = (line.y2 - line.y1) / (line.x2 - line.x1); // may be infinity
                 line.b = (line.y1 - line.m * line.x1); // in which case this would be -infinity
@@ -177,18 +203,91 @@ function main() {
         } while (badPos);
         
         // add course information to globals
-        this.shaveLines(course.lines);
-        this.courses.push(course);
+        // this.shaveLines(course.lines);
+        data.push(course);
         this.courseDict[course.name] = course;
         this.levels[course.level].push(course.pos);
-        this.lines = this.lines.concat(course.lines);
+        return;
+    };
+
+    this.deleteCourse = function(course) {
+        $("g." + course).remove();
+        course = this.courseDict[course];
+        this.levels[course.level].splice(this.levels[course.level].indexOf(course.pos), 1);
+        var to = Object.keys(course.lines);
+        for (var i = 0; i < to.length; i++) {
+            if (to[i] in this.courseDict)
+                this.deleteCourse(to[i]);
+            // TODO: store FROM lines in course.lines as well as TO lines
+            // actually unnecessary?
+        }
+        var prereqs = this.splitPrereqs(course.prerequisites);
+        for (var i = 0; i < prereqs.length; i++) {
+            var l = this.courseDict[prereqs[i]].lines[course.name];
+            $('line.' + l.to).remove();
+            delete l;
+        }
+        delete this.courseDict[course.name];
+        data.splice(data.indexOf(course), 1);
+        // TODO: rearrange courses
     };
 
     this.visualize = function() {
-        this.svg.selectAll("circle")
-            .data(this.courses)
+        $("svg").children().remove()
+
+        var circlesAndLines = this.svg.selectAll("g")
+            .data(data)
             .enter()
-            .append("circle")
+            .append("g")
+            .attr("class", function(d) { return d.name; });
+
+        circlesAndLines.each(function(d) {
+            var to = Object.keys(d.lines);
+            for (var i = 0; i < to.length; i++) {
+                var l = d.lines[to[i]];
+                d3.select(this)
+                    .append("line")
+                    .attr("x1", l.x1)
+                    .attr("y1", l.y1)
+                    .attr("x2", l.x2)
+                    .attr("y2", l.y2)
+                    .attr("stroke-width", 2)
+                    .attr("opacity", "0")
+                    .attr("class", "line");
+            }
+        });
+
+        var mouseOverAndOut = function(over, course) {
+            // (un)highlight course and prereqs
+            var highlightedCourses = m.getAllPrereqs(course);
+            highlightedCourses.push(course);
+            for (var i = 0; i < highlightedCourses.length; i++) {
+                d3.select("#" + highlightedCourses[i])
+                    .transition()
+                    .duration(500)
+                    .style("stroke", over ? function() {
+                            return highlightedCourses[i] === course ? "aqua" : "lime";
+                        } : "orange");
+            }
+
+            // show/hide lines
+            d3.selectAll(".line")
+                .transition()
+                .duration(500)
+                .attr("opacity", over ? "1" : "0");
+        }
+
+        var circles = circlesAndLines.append("g")
+            .on("mouseover", function(d) { mouseOverAndOut(true, d.name); })
+            .on("mouseout", function(d) { mouseOverAndOut(false, d.name); })
+            .on("dblclick", function(d) {
+                // kind of mouseout the circle
+                mouseOverAndOut(false, d.name);
+                // DELETED
+                m.deleteCourse(d.name);
+            });
+
+        circles.append("circle")
             .attr("r", r)
             .attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; })
@@ -197,20 +296,7 @@ function main() {
             .attr("stroke-width", 5)
             .attr("id", function(d) { return d.name; });
 
-        this.svg.selectAll("line")
-            .data(this.lines)
-            .enter()
-            .append("line")
-            .attr("x1", function(d) { return d.x1; })
-            .attr("y1", function(d) { return d.y1; })
-            .attr("x2", function(d) { return d.x2; })
-            .attr("y2", function(d) { return d.y2; })
-            .attr("stroke-width", 2);
-
-        this.svg.selectAll("text")
-            .data(this.courses)
-            .enter()
-            .append("text")
+        circles.append("text")
             .text(function(d) { return d.name; })
             .attr("x", function(d) { return d.x; })
             .attr("y", function(d) { return d.y + 5; })
@@ -221,5 +307,51 @@ function main() {
     };
 };
 
-m = new main();
-m.init();
+// $(document).ready(function () {
+//     $("svg").on("mouseover", "circle", function(e) {
+//         var course = $(this).attr("class");
+//         var changes = m.getAllPrereqs(m.courseDict[course]);
+//         changes.push(course);
+//         for (var i = 0; i < changes.length; i++) {
+//             m.svg.select("circle." + changes[i])
+//                 .transition()
+//                 .duration(500)
+//                 .style("stroke", function(d) { return changes[i] === course ? "aqua" : "lime"});
+//         };
+//     }).on("mouseout", "circle", function() {
+//         var course = $(this).attr("class");
+//         var changes = m.getAllPrereqs(m.courseDict[course]);
+//         changes.push(course);
+//         for (var i = 0; i < changes.length; i++) {
+//             m.svg.select("circle." + changes[i])
+//                 .transition()
+//                 .duration(500)
+//                 .style("stroke", "orange");
+//         };
+//     }).on("dblclick", "circle", function(e) {
+//         var course = $(this)[0].__data__.name;
+//         var deleteLines = m.deleteCourse(course);
+//         m.svg.selectAll("circle")
+//             .transition()
+//             .duration(500)
+//             .style("stroke", "orange");
+//         for (var i = 0; i < deleteLines.length; i++) {
+//             $("line." + deleteLines[i].from.name).remove();
+//             m.lines.splice(m.lines.indexOf(deleteLines[i]), 1);
+//         }
+//         // TODO: rearrange courses to fit better 
+//         m.visualize();
+//     }).on("mousedown", "circle", function(e) {
+//         e.preventDefault(); // TODO: make doubleclick stop highlighting better
+//     });
+// });
+
+var error = function(errMsg) {
+    $("#err").text(errMsg).show().fadeOut(1500);
+}
+
+var m = new main();
+var data = []
+m.addCourse("COMP516"); m.visualize();
+// var data = m.apiRequest();
+// m.init();
